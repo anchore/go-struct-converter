@@ -21,8 +21,6 @@ SUCCESS := $(BOLD)$(GREEN)
 
 # test variables
 RESULTSDIR = test/results
-COMPARE_DIR = ./test/compare
-COMPARE_TEST_IMAGE = centos:8.2.2004
 COVER_REPORT = $(RESULTSDIR)/unit-coverage-details.txt
 COVER_TOTAL = $(RESULTSDIR)/unit-coverage-summary.txt
 # the quality gate lower threshold for unit test total % coverage (by function statements)
@@ -42,7 +40,7 @@ bootstrap-tools: $(TEMPDIR)
 	GOBIN="$(realpath $(TEMPDIR))" go install github.com/rinchsan/gosimports/cmd/gosimports@$(GOSIMPORTS_VERSION)
 
 .PHONY: static-analysis
-static-analysis: check-go-mod-tidy check-licenses lint
+static-analysis: check-licenses lint
 
 .PHONY: lint
 lint: ## Run gofmt + golangci lint checks
@@ -70,10 +68,6 @@ lint-fix: ## Auto-format all source code + run golangci lint fixers
 .PHONY: check-licenses
 check-licenses: ## Ensure transitive dependencies are compliant with the current license policy
 	$(TEMPDIR)/bouncer check ./...
-
-.PHONY: check-go-mod-tidy
-check-go-mod-tidy:
-	@ .github/scripts/go-mod-tidy-check.sh && echo "go.mod and go.sum are tidy!"
 
 .PHONY: unit
 unit: $(RESULTSDIR) ## Run unit tests (with coverage)
