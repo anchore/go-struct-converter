@@ -58,6 +58,11 @@ func Test_ConverterChain(t *testing.T) {
 			},
 		},
 		{
+			name: "from nil value",
+			from: (*V1)(nil),
+			to:   V3{},
+		},
+		{
 			name: "invalid FROM type",
 			from: Invalid{},
 			to:   V1{},

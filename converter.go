@@ -30,6 +30,11 @@ func Convert(from interface{}, to interface{}) error {
 		return err
 	}
 
+	// don't set nil values
+	if toValue == nilValue {
+		return nil
+	}
+
 	// toValuePtr is the passed-in pointer, toValue is also the same type of pointer
 	toValuePtr.Elem().Set(toValue.Elem())
 	return nil

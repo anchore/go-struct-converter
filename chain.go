@@ -12,7 +12,7 @@ func NewChain(structs ...interface{}) Chain {
 	out := Chain{}
 	for _, s := range structs {
 		typ := reflect.TypeOf(s)
-		if typ.Kind() == reflect.Ptr { // these shouldn't be pointers, but check just to be safe
+		if isPtr(typ) { // these shouldn't be pointers, but check just to be safe
 			typ = typ.Elem()
 		}
 		out.Types = append(out.Types, typ)
@@ -31,15 +31,15 @@ func (c Chain) Convert(from interface{}, to interface{}) (err error) {
 	fromType := fromValue.Type()
 
 	// handle incoming pointers
-	for fromType.Kind() == reflect.Ptr {
+	for isPtr(fromType) {
 		fromValue = fromValue.Elem()
-		fromType = fromValue.Type()
+		fromType = fromType.Elem()
 	}
 
 	toValuePtr := reflect.ValueOf(to)
 	toTypePtr := toValuePtr.Type()
 
-	if toTypePtr.Kind() != reflect.Ptr {
+	if !isPtr(toTypePtr) {
 		return fmt.Errorf("TO struct provided not a pointer, unable to set values: %v", to)
 	}
 
@@ -69,18 +69,19 @@ func (c Chain) Convert(from interface{}, to interface{}) (err error) {
 
 	last := from
 	for i := fromIdx; i != toIdx; {
-		// skip the current index, because that is the from type - start with the next conversion in the chain
+		// skip the first index, because that is the from type - start with the next conversion in the chain
 		if fromIdx < toIdx {
 			i++
 		} else {
 			i--
 		}
 
-		next := to
-
-		if i != toIdx {
+		var next interface{}
+		if i == toIdx {
+			next = to
+		} else {
 			nextVal := reflect.New(c.Types[i])
-			next = nextVal.Interface() // this will be a pointer, which is fine to pass to Convert in both from and to
+			next = nextVal.Interface() // this will be a pointer, which is fine to pass to both from and to in Convert
 		}
 
 		if err = Convert(last, next); err != nil {

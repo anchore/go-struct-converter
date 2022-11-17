@@ -58,6 +58,13 @@ func Test_Convert(t *testing.T) {
 			to:   "25",
 		},
 		{
+			name: "from nil value",
+			from: (*T1)(nil),
+			to: struct {
+				Other string
+			}{},
+		},
+		{
 			name: "missing properties are omitted",
 			from: struct {
 				Value string
