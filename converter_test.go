@@ -347,14 +347,14 @@ func Test_Convert(t *testing.T) {
 				Map map[s1]string
 			}{
 				Map: map[s1]string{
-					s1{Value: "some-key"}: "some-value",
+					{Value: "some-key"}: "some-value",
 				},
 			},
 			to: struct {
 				Map map[s2]string
 			}{
 				Map: map[s2]string{
-					s2{Value: "some-key"}: "some-value",
+					{Value: "some-key"}: "some-value",
 				},
 			},
 		},
@@ -364,14 +364,14 @@ func Test_Convert(t *testing.T) {
 				Map map[s1]string
 			}{
 				Map: map[s1]string{
-					s1{Value: "some-key"}: "some-value",
+					{Value: "some-key"}: "some-value",
 				},
 			},
 			to: struct {
 				Map map[s2]*string
 			}{
 				Map: map[s2]*string{
-					s2{Value: "some-key"}: s("some-value"),
+					{Value: "some-key"}: s("some-value"),
 				},
 			},
 		},
@@ -381,14 +381,14 @@ func Test_Convert(t *testing.T) {
 				Map map[*s1]string
 			}{
 				Map: map[*s1]string{
-					&s1{Value: "some-key"}: "some-value",
+					{Value: "some-key"}: "some-value",
 				},
 			},
 			to: struct {
 				Map map[s2]string
 			}{
 				Map: map[s2]string{
-					s2{Value: "some-key"}: "some-value",
+					{Value: "some-key"}: "some-value",
 				},
 			},
 		},
@@ -398,14 +398,14 @@ func Test_Convert(t *testing.T) {
 				Map *map[*s1]string
 			}{
 				Map: &map[*s1]string{
-					&s1{Value: "some-key"}: "some-value",
+					{Value: "some-key"}: "some-value",
 				},
 			},
 			to: struct {
 				Map map[s2]string
 			}{
 				Map: map[s2]string{
-					s2{Value: "some-key"}: "some-value",
+					{Value: "some-key"}: "some-value",
 				},
 			},
 		},

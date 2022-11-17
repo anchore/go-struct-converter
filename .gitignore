@@ -20,5 +20,11 @@
 # Go workspace file
 go.work
 
+# tools
+.tmp
+
+# test output
+test/results
+
 # IDE project files
 .idea
