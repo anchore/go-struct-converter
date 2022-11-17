@@ -20,7 +20,7 @@ func Convert(from interface{}, to interface{}) error {
 	fromType := fromValue.Type()
 
 	// handle incoming pointers
-	for fromType.Kind() == reflect.Ptr {
+	for isPtr(fromType) {
 		fromValue = fromValue.Elem()
 		fromType = fromValue.Type()
 	}
@@ -28,7 +28,7 @@ func Convert(from interface{}, to interface{}) error {
 	toValuePtr := reflect.ValueOf(to)
 	toTypePtr := toValuePtr.Type()
 
-	if toTypePtr.Kind() != reflect.Ptr {
+	if !isPtr(toTypePtr) {
 		return fmt.Errorf("to struct provided was not a pointer, unable to set values: %v", to)
 	}
 
@@ -89,7 +89,7 @@ func getValue(fromValue reflect.Value, targetType reflect.Type) (reflect.Value, 
 	var toValue reflect.Value
 
 	// handle incoming pointer Types
-	if fromType.Kind() == reflect.Ptr {
+	if isPtr(fromType) {
 		if fromValue.IsNil() {
 			return nilValue, nil
 		}
@@ -101,12 +101,12 @@ func getValue(fromValue reflect.Value, targetType reflect.Type) (reflect.Value, 
 	}
 
 	baseTargetType := targetType
-	if targetType.Kind() == reflect.Ptr {
+	if isPtr(targetType) {
 		baseTargetType = targetType.Elem()
 	}
 
 	switch {
-	case fromType.Kind() == reflect.Struct && baseTargetType.Kind() == reflect.Struct:
+	case isStruct(fromType) && isStruct(baseTargetType):
 		// this always creates a pointer type
 		toValue = reflect.New(baseTargetType)
 		toValue = toValue.Elem()
@@ -148,7 +148,7 @@ func getValue(fromValue reflect.Value, targetType reflect.Type) (reflect.Value, 
 				return nilValue, fmt.Errorf("an error occurred calling %s.%s: %v", baseTargetType.Name(), convertFromName, err)
 			}
 		}
-	case fromType.Kind() == reflect.Slice && baseTargetType.Kind() == reflect.Slice:
+	case isSlice(fromType) && isSlice(baseTargetType):
 		if fromValue.IsNil() {
 			return nilValue, nil
 		}
@@ -165,7 +165,7 @@ func getValue(fromValue reflect.Value, targetType reflect.Type) (reflect.Value, 
 				toValue.Index(i).Set(v)
 			}
 		}
-	case fromType.Kind() == reflect.Map && baseTargetType.Kind() == reflect.Map:
+	case isMap(fromType) && isMap(baseTargetType):
 		if fromValue.IsNil() {
 			return nilValue, nil
 		}
@@ -194,13 +194,12 @@ func getValue(fromValue reflect.Value, targetType reflect.Type) (reflect.Value, 
 			}
 		}
 	default:
-		// TODO determine if there is another conversion for the rest of the Types
+		// TODO determine if there are other conversions
 		toValue = fromValue
 	}
 
 	// handle non-pointer returns -- the reflect.New earlier always creates a pointer
-	// FIXME: i don't think this is doing anything, baseTargetType is never a ptr
-	if baseTargetType.Kind() != reflect.Ptr {
+	if !isPtr(baseTargetType) {
 		toValue = fromPtr(toValue)
 	}
 
@@ -211,7 +210,7 @@ func getValue(fromValue reflect.Value, targetType reflect.Type) (reflect.Value, 
 	}
 
 	// handle elements which are now pointers
-	if targetType.Kind() == reflect.Ptr {
+	if isPtr(targetType) {
 		toValue = toPtr(toValue)
 	}
 
@@ -230,7 +229,7 @@ func convertValueTypes(value reflect.Value, targetType reflect.Type) (reflect.Va
 
 	case isPrimitive(typ) && isPrimitive(targetType):
 		// get a string representation of the value
-		str := fmt.Sprintf("%v", value.Interface()) // FIXME is there a better way?
+		str := fmt.Sprintf("%v", value.Interface()) // TODO is there a better way to get a string representation?
 		var err error
 		var out interface{}
 		switch {
@@ -256,9 +255,9 @@ func convertValueTypes(value reflect.Value, targetType reflect.Type) (reflect.Va
 
 		return v, nil
 	case isSlice(typ) && isSlice(targetType):
-		// TODO -- this should already be handled
+		// this should already be handled in getValue
 	case isSlice(typ):
-		// TODO this may be lossy
+		// this may be lossy
 		if value.Len() > 0 {
 			v := value.Index(0)
 			v, err := convertValueTypes(v, targetType)
@@ -283,6 +282,10 @@ func convertValueTypes(value reflect.Value, targetType reflect.Type) (reflect.Va
 	}
 
 	return nilValue, fmt.Errorf("unable to convert from: %v to %v", value.Interface(), targetType.Name())
+}
+
+func isPtr(typ reflect.Type) bool {
+	return typ.Kind() == reflect.Ptr
 }
 
 func isPrimitive(typ reflect.Type) bool {
@@ -330,13 +333,21 @@ func isFloat(typ reflect.Type) bool {
 	return false
 }
 
+func isStruct(typ reflect.Type) bool {
+	return typ.Kind() == reflect.Struct
+}
+
 func isSlice(typ reflect.Type) bool {
 	return typ.Kind() == reflect.Slice
 }
 
+func isMap(typ reflect.Type) bool {
+	return typ.Kind() == reflect.Map
+}
+
 func toPtr(val reflect.Value) reflect.Value {
 	typ := val.Type()
-	if typ.Kind() != reflect.Ptr {
+	if !isPtr(typ) {
 		// this creates a pointer type inherently
 		ptrVal := reflect.New(typ)
 		ptrVal.Elem().Set(val)
@@ -346,8 +357,7 @@ func toPtr(val reflect.Value) reflect.Value {
 }
 
 func fromPtr(val reflect.Value) reflect.Value {
-	typ := val.Type()
-	if typ.Kind() == reflect.Ptr {
+	if isPtr(val.Type()) {
 		val = val.Elem()
 	}
 	return val
