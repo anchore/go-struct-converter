@@ -5,6 +5,39 @@ import (
 	"testing"
 )
 
+func Test_ConvertVar(t *testing.T) {
+	from := T5{
+		Version: "2.2",
+		Embedded: T3{
+			T1: T1{
+				Same:     "same value",
+				OldValue: "old value",
+			},
+		},
+	}
+
+	var to T6
+
+	err := Convert(from, &to)
+	if err != nil {
+		t.Error(err)
+	}
+
+	expected := T6{
+		Version: "2.3",
+		Embedded: T4{
+			T2: T2{
+				Same:     "same value",
+				NewValue: "old value",
+			},
+		},
+	}
+
+	if !reflect.DeepEqual(expected, to) {
+		t.Errorf("structs are not equal: %+v != %+v", expected, to)
+	}
+}
+
 func Test_Convert(t *testing.T) {
 	type s1 struct {
 		Value string
@@ -19,6 +52,11 @@ func Test_Convert(t *testing.T) {
 		from interface{}
 		to   interface{}
 	}{
+		{
+			name: "primitive support",
+			from: 25,
+			to:   "25",
+		},
 		{
 			name: "missing properties are omitted",
 			from: struct {

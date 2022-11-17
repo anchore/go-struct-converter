@@ -17,67 +17,21 @@ type ConvertFrom interface {
 // perform any additional conversion logic necessary.
 func Convert(from interface{}, to interface{}) error {
 	fromValue := reflect.ValueOf(from)
-	fromType := fromValue.Type()
-
-	// handle incoming pointers
-	for isPtr(fromType) {
-		fromValue = fromValue.Elem()
-		fromType = fromValue.Type()
-	}
 
 	toValuePtr := reflect.ValueOf(to)
 	toTypePtr := toValuePtr.Type()
 
 	if !isPtr(toTypePtr) {
-		return fmt.Errorf("to struct provided was not a pointer, unable to set values: %v", to)
+		return fmt.Errorf("TO value provided was not a pointer, unable to set value: %v", to)
 	}
 
-	// toValue must be a pointer, but data needs to be set on the struct directly
-	toValue := toValuePtr.Elem()
-	toType := toValue.Type()
-
-	// Assume structs at this point
-	for i := 0; i < fromType.NumField(); i++ {
-		fromField := fromType.Field(i)
-		fromFieldValue := fromValue.Field(i)
-
-		if !fromFieldValue.IsValid() || fromFieldValue.IsZero() {
-			continue
-		}
-
-		toField, exists := toType.FieldByName(fromField.Name)
-		if !exists {
-			continue
-		}
-
-		toFieldValue := toValue.FieldByIndex(toField.Index)
-
-		newValue, err := getValue(fromFieldValue, toField.Type)
-
-		if err != nil {
-			return err
-		}
-
-		if newValue == nilValue {
-			continue
-		}
-
-		toFieldValue.Set(newValue)
+	toValue, err := getValue(fromValue, toTypePtr)
+	if err != nil {
+		return err
 	}
 
-	if toTypePtr.Implements(convertFromType) {
-		convertFrom := toValuePtr.MethodByName(convertFromName)
-		if !convertFrom.IsValid() {
-			return fmt.Errorf("unable to get ConvertFrom method")
-		}
-		args := []reflect.Value{fromValue}
-		out := convertFrom.Call(args)
-		err := out[0].Interface()
-		if err != nil {
-			return fmt.Errorf("an error occurred calling %s.%s: %v", toType.Name(), convertFromName, err)
-		}
-	}
-
+	// toValuePtr is the passed-in pointer, toValue is also the same type of pointer
+	toValuePtr.Elem().Set(toValue.Elem())
 	return nil
 }
 
