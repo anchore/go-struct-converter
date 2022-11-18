@@ -20,7 +20,7 @@ types. Some examples are:
 
 The automatic conversions are implemented when there is an obvious way
 to convert between the types. A lot more automatic conversions happen
--- see [the converter tests](converter_testo.go) for a more comprehensive
+-- see [the converter tests](converter_test.go) for a more comprehensive
 list of what is currently supported.
 
 Not everything can be handled automatically, however, so there is also
@@ -159,3 +159,8 @@ func (to *V3) ConvertFrom(from interface{}) error {
 At this point we could convert in either direction, for example a 
 `V3` struct could convert to a `V1` struct, with the caveat that there
 may be data loss, as might need to happen due to changes in the data shapes.
+
+## Contributing
+
+If you would like to contribute to this repository, please see the
+[CONTRIBUTING.md](CONTRIBUTING.md).
