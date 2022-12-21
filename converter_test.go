@@ -39,6 +39,8 @@ func Test_ConvertVar(t *testing.T) {
 }
 
 func Test_Convert(t *testing.T) {
+	type alt string
+
 	type s1 struct {
 		Value string
 	}
@@ -108,6 +110,32 @@ func Test_Convert(t *testing.T) {
 			name: "string equals",
 			from: struct {
 				Value string
+			}{
+				Value: "the value",
+			},
+			to: struct {
+				Value string
+			}{
+				Value: "the value",
+			},
+		},
+		{
+			name: "string to alt type",
+			from: struct {
+				Value string
+			}{
+				Value: "the value",
+			},
+			to: struct {
+				Value alt
+			}{
+				Value: "the value",
+			},
+		},
+		{
+			name: "alt type to string",
+			from: struct {
+				Value alt
 			}{
 				Value: "the value",
 			},
