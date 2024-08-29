@@ -84,12 +84,12 @@ func (c Chain) Convert(from interface{}, to interface{}) (err error) {
 			next = nextVal.Interface() // this will be a pointer, which is fine to pass to both from and to in Convert
 		}
 
-		if err = Convert(last, next); err != nil {
-			return err
+		if e := Convert(last, next); e != nil {
+			err = joinErrs(err, e)
 		}
 
 		last = next
 	}
 
-	return nil
+	return err
 }

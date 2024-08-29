@@ -1,6 +1,7 @@
 package converter
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -26,22 +27,20 @@ func Convert(from interface{}, to interface{}) error {
 	}
 
 	toValue, err := getValue(fromValue, toTypePtr)
-	if err != nil {
-		return err
-	}
 
 	// don't set nil values
 	if toValue == nilValue {
-		return nil
+		return err
 	}
 
 	// toValuePtr is the passed-in pointer, toValue is also the same type of pointer
 	toValuePtr.Elem().Set(toValue.Elem())
-	return nil
+
+	return err
 }
 
 func getValue(fromValue reflect.Value, targetType reflect.Type) (reflect.Value, error) {
-	var err error
+	var errs error
 
 	fromType := fromValue.Type()
 
@@ -84,7 +83,8 @@ func getValue(fromValue reflect.Value, targetType reflect.Type) (reflect.Value, 
 
 			newValue, err := getValue(fromFieldValue, toFieldType)
 			if err != nil {
-				return nilValue, err
+				errs = joinErrs(errs, err)
+				continue
 			}
 
 			if newValue == nilValue {
@@ -161,18 +161,29 @@ func getValue(fromValue reflect.Value, targetType reflect.Type) (reflect.Value, 
 		toValue = fromPtr(toValue)
 	}
 
-	toValue, err = convertValueTypes(toValue, baseTargetType)
-
-	if err != nil {
-		return nilValue, err
-	}
+	toValue, err := convertValueTypes(toValue, baseTargetType)
+	errs = joinErrs(errs, err)
 
 	// handle elements which are now pointers
 	if isPtr(targetType) {
 		toValue = toPtr(toValue)
 	}
 
-	return toValue, nil
+	return toValue, errs
+}
+
+func joinErrs(err1 error, err2 error) error {
+	return errors.Join(append(errs(err1), errs(err2)...)...)
+}
+
+func errs(err error) []error {
+	if err == nil {
+		return nil
+	}
+	if e, ok := err.(interface{ Unwrap() []error }); ok {
+		return e.Unwrap()
+	}
+	return []error{err}
 }
 
 // convertValueTypes takes a value and a target type, and attempts to convert
