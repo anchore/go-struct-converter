@@ -54,7 +54,7 @@ type V2 struct {
   NewField string // this was a renamed field
 }
 
-func (to *V2) ConvertFrom(from interface{}) error {
+func (to *V2) ConvertFrom(from any) error {
   if from, ok := from.(V1); ok { // forward migration
     to.NewField = from.OldField
   }
@@ -68,7 +68,7 @@ type V3 struct {
   FinalField []string // this field was renamed and the type was changed
 }
 
-func (to *V3) ConvertFrom(from interface{}) error {
+func (to *V3) ConvertFrom(from any) error {
   if from, ok := from.(V2); ok { // forward migration
     to.FinalField = []string{from.NewField}
   }
@@ -117,7 +117,7 @@ type V1 struct {
   OldField string
 }
 
-func (to *V1) ConvertFrom(from interface{}) error {
+func (to *V1) ConvertFrom(from any) error {
   if from, ok := from.(V2); ok { // backward migration
     to.OldField = from.NewField
   }
@@ -131,7 +131,7 @@ type V2 struct {
   NewField string
 }
 
-func (to *V2) ConvertFrom(from interface{}) error {
+func (to *V2) ConvertFrom(from any) error {
   if from, ok := from.(V1); ok { // forward migration
     to.NewField = from.OldField
   }
@@ -148,7 +148,7 @@ type V3 struct {
   FinalField []string
 }
 
-func (to *V3) ConvertFrom(from interface{}) error {
+func (to *V3) ConvertFrom(from any) error {
   if from, ok := from.(V2); ok { // forward migration
     to.FinalField = []string{from.NewField}
   }

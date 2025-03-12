@@ -1,32 +1,117 @@
 package converter
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 )
 
 type FuncChain interface {
-	Convert(from interface{}, to interface{}) error
+	AddConverter(converter ...any) FuncChain
+	AutoPackageConverter(fromPkg, toPkg any) FuncChain
+	Convert(from any, to any) error
 }
 
 type funcChain struct {
 	funcs map[reflect.Type]map[reflect.Type]func(from reflect.Value, to reflect.Value) error
 }
 
-func NewFuncChain(converters ...interface{}) FuncChain {
+func NewFuncChain(converters ...any) FuncChain {
 	out := funcChain{
 		funcs: map[reflect.Type]map[reflect.Type]func(from reflect.Value, to reflect.Value) error{},
 	}
-	for _, converter := range converters {
-		out.AddConverter(converter)
+	return out.AddConverter(converters...)
+}
+
+func (c funcChain) AutoPackageConverter(fromPkg, toPkg any) FuncChain {
+	fromTypes := map[string]reflect.Type{}
+	toTypes := map[string]reflect.Type{}
+
+	fromName := pkgName(fromPkg)
+	toName := pkgName(toPkg)
+
+	if fromName == "" || toName == "" {
+		panic("invalid auto package type; should be struct")
 	}
-	return out
+
+	for t := range listAllBaseTypes() {
+		if t.PkgPath() == fromPkg {
+			fromTypes[t.Name()] = t
+		}
+		if t.PkgPath() == toPkg {
+			toTypes[t.Name()] = t
+		}
+	}
+
+	for name, fromT := range fromTypes {
+		toT, ok := toTypes[name]
+		if !ok {
+			continue
+		}
+
+		// this does nothing other than inform the types
+		c.AddConvertFunc(fromT, toT, func(from reflect.Value, to reflect.Value) error {
+			return nil
+		})
+	}
+
+	return c
+}
+
+func pkgName(pkg any) string {
+	switch p := pkg.(type) {
+	case string:
+		return p
+	case reflect.Type:
+		return p.PkgPath()
+	}
+	return baseType(reflect.TypeOf(pkg)).PkgPath()
+}
+
+func (c funcChain) Convert(from any, to any) error {
+	fromValue := reflect.ValueOf(from)
+	fromType := fromValue.Type()
+	baseFromType := baseType(fromType)
+
+	toValue := reflect.ValueOf(to)
+	toType := toValue.Type()
+	baseToType := baseType(toType)
+
+	// build the shortest path between types
+	chain := c.shortestChain(baseFromType, baseToType)
+
+	cnv := conversion{
+		chain: &c,
+	}
+
+	// iterate, creating any intermediary structs for the migration
+	last := fromValue
+	for i, step := range chain {
+		var next reflect.Value
+		if i == len(chain)-1 {
+			next = toValue
+		} else {
+			next = reflect.New(step.targetType)
+		}
+
+		cnv.convert(last, next)
+		last = next
+	}
+
+	return errors.Join(cnv.errors...)
 }
 
 var chainType = reflect.TypeOf((*FuncChain)(nil)).Elem()
 var errorInterface = reflect.TypeOf((*error)(nil)).Elem()
 
-func (c funcChain) AddConverter(converter interface{}) {
+func (c funcChain) AddConverter(converters ...any) FuncChain {
+	for _, converter := range converters {
+		c.addConverter(converter)
+	}
+	return c
+}
+
+func (c funcChain) addConverter(converter any) {
 	convertFunc := reflect.ValueOf(converter)
 	convertFuncType := convertFunc.Type()
 	if validationError := validateConvertFunc(convertFuncType); validationError != nil {
@@ -58,20 +143,7 @@ func (c funcChain) AddConverter(converter interface{}) {
 		toType = convertFuncType.In(2)
 	}
 
-	baseFromType := baseType(fromType)
-	baseToType := baseType(toType)
-
-	convertFuncs := c.funcs[baseFromType]
-	if convertFuncs == nil {
-		convertFuncs = map[reflect.Type]func(from reflect.Value, to reflect.Value) error{}
-		c.funcs[baseFromType] = convertFuncs
-	}
-
-	if convertFuncs[baseToType] != nil {
-		panic(fmt.Errorf("convert from: %s -> %s defined multiple times; %+v", typeName(baseFromType), typeName(baseToType), reflect.TypeOf(convertFuncs[baseToType])))
-	}
-
-	convertFuncs[baseToType] = func(from reflect.Value, to reflect.Value) error {
+	c.AddConvertFunc(fromType, toType, func(from reflect.Value, to reflect.Value) error {
 		// setup matching args, from and to should already be set up properly
 		var args []reflect.Value
 		if hasChainParam {
@@ -88,7 +160,25 @@ func (c funcChain) AddConverter(converter interface{}) {
 			return out[0].Interface().(error)
 		}
 		return nil
+	})
+}
+
+func (c funcChain) AddConvertFunc(fromType, toType reflect.Type, fn func(from reflect.Value, to reflect.Value) error) {
+
+	baseFromType := baseType(fromType)
+	baseToType := baseType(toType)
+
+	convertFuncs := c.funcs[baseFromType]
+	if convertFuncs == nil {
+		convertFuncs = map[reflect.Type]func(from reflect.Value, to reflect.Value) error{}
+		c.funcs[baseFromType] = convertFuncs
 	}
+
+	if convertFuncs[baseToType] != nil {
+		panic(fmt.Errorf("convert from: %s -> %s defined multiple times; %+v", typeName(baseFromType), typeName(baseToType), reflect.TypeOf(convertFuncs[baseToType])))
+	}
+
+	convertFuncs[baseToType] = fn
 }
 
 func typeName(t reflect.Type) string {
@@ -134,38 +224,6 @@ func validateConvertFunc(t reflect.Type) error {
 	return nil
 }
 
-func (c funcChain) Convert(from interface{}, to interface{}) error {
-	fromValue := reflect.ValueOf(from)
-	fromType := fromValue.Type()
-	baseFromType := baseType(fromType)
-
-	toValue := reflect.ValueOf(to)
-	toType := toValue.Type()
-	baseToType := baseType(toType)
-
-	// build the shortest path between types
-	chain := c.shortestChain(baseFromType, baseToType)
-
-	// iterate, creating any intermediary structs for the migration
-	last := fromValue
-	for i, step := range chain {
-		var next reflect.Value
-		if i == len(chain)-1 {
-			next = toValue
-		} else {
-			next = reflect.New(step.targetType)
-		}
-
-		if err := c.convert(last, next); err != nil {
-			return err
-		}
-
-		last = next
-	}
-
-	return nil
-}
-
 func baseType(t reflect.Type) reflect.Type {
 	for isPtr(t) {
 		t = t.Elem()
@@ -174,6 +232,7 @@ func baseType(t reflect.Type) reflect.Type {
 }
 
 type reflectConvertFunc func(from reflect.Value, to reflect.Value) error
+
 type reflectConvertStep struct {
 	targetType  reflect.Type
 	convertFunc reflectConvertFunc
@@ -192,6 +251,12 @@ func (c funcChain) shortestChain(fromType reflect.Type, targetType reflect.Type)
 		if shortest == nil || len(chain) < len(shortest) {
 			shortest = chain
 		}
+	}
+	// no explicit conversions, try a direct conversion
+	if len(shortest) == 0 {
+		return []reflectConvertStep{{fromType, func(from reflect.Value, to reflect.Value) error {
+			return nil
+		}}}
 	}
 	return shortest
 }
