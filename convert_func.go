@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 )
 
 type FuncChain interface {
@@ -238,13 +239,16 @@ type reflectConvertStep struct {
 	convertFunc reflectConvertFunc
 }
 
-func (c funcChain) shortestChain(fromType reflect.Type, targetType reflect.Type) []reflectConvertStep {
+func (c funcChain) shortestChain(fromType reflect.Type, targetType reflect.Type, visited ...reflect.Type) []reflectConvertStep {
 	var shortest []reflectConvertStep
 	for toType, convertFunc := range c.funcs[fromType] {
+		if slices.Contains(visited, toType) {
+			continue
+		}
 		if toType == targetType {
 			return []reflectConvertStep{{toType, convertFunc}}
 		}
-		chain := c.shortestChain(toType, targetType)
+		chain := c.shortestChain(toType, targetType, append(visited, fromType)...)
 		if chain != nil {
 			chain = append([]reflectConvertStep{{toType, convertFunc}}, chain...)
 		}

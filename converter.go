@@ -142,6 +142,10 @@ func (c *conversion) getValue(fromValue reflect.Value, targetType reflect.Type) 
 		toValue = fromValue
 	}
 
+	if !toValue.IsValid() {
+		return nilValue
+	}
+
 	// handle non-pointer returns -- the reflect.New earlier always creates a pointer
 	if !isPtr(baseTargetType) {
 		toValue = fromPtr(toValue)
@@ -235,6 +239,9 @@ func (c *conversion) convertValueTypes(value reflect.Value, targetType reflect.T
 
 func (c *conversion) findConvertableType(fromType reflect.Type, targetType reflect.Type) reflect.Type {
 	converters := c.chain.funcs[fromType]
+	if converters == nil {
+		return nil
+	}
 	if v, ok := converters[targetType]; ok {
 		if v == nil {
 			return nil
