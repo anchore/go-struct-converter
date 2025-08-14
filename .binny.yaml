@@ -7,6 +7,14 @@ tools:
     with:
       repo: anchore/binny
 
+  # used at release to generate the changelog
+  - name: chronicle
+    version:
+      want: v0.8.0
+    method: github-release
+    with:
+      repo: anchore/chronicle
+
   # used to produce SBOMs during release
   - name: syft
     version:
@@ -30,14 +38,6 @@ tools:
     method: github-release
     with:
       repo: rinchsan/gosimports
-
-  # used at release to generate the changelog
-  - name: chronicle
-    version:
-      want: v0.8.0
-    method: github-release
-    with:
-      repo: anchore/chronicle
 
   # used during static analysis for license compliance
   - name: bouncer
