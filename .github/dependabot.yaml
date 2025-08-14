@@ -1,0 +1,21 @@
+version: 2
+
+updates:
+
+  - package-ecosystem: gomod
+    directories:
+      - "/"
+      - "/.make"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
