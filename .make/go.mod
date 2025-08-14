@@ -1,6 +1,6 @@
 module github.com/anchore/chronicle/.make
 
-go 1.24.0
+go 1.24
 
 require github.com/anchore/go-make v0.0.2
 
