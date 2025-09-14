@@ -1,8 +1,12 @@
 github.com/anchore/go-make v0.0.3-0.20250814182018-b4667c4a963b h1:Z6cUEN8CvtffAEHZDPEGEHz1sk6fPPGf4NejnTDkHnQ=
 github.com/anchore/go-make v0.0.3-0.20250814182018-b4667c4a963b/go.mod h1:jsd75YTZwUrbxnOs3ZaN2NGfxqbSuS9jAhyLjb55Nvs=
+github.com/anchore/go-make v0.0.3-0.20250913213529-5ab7e1f54ce5 h1:I4XZg8uHfJXU9p/dHzmsnwco+/6SF6jGgs7tTYb7A8w=
+github.com/anchore/go-make v0.0.3-0.20250913213529-5ab7e1f54ce5/go.mod h1:xVo4+hh2d29oGJpSk1XUFhUJMPgZkSMIFmdhpEgp4uo=
 github.com/bmatcuk/doublestar/v4 v4.9.1 h1:X8jg9rRZmJd4yRy7ZeNDRnM+T3ZfHv15JiBJ/avrEXE=
 github.com/bmatcuk/doublestar/v4 v4.9.1/go.mod h1:xBQ8jztBU6kakFMg+8WGxn0c6z1fTSPVIjEY1Wr7jzc=
 github.com/goccy/go-yaml v1.18.0 h1:8W7wMFS12Pcas7KU+VVkaiCng+kG8QiFeFwzFb+rwuw=
 github.com/goccy/go-yaml v1.18.0/go.mod h1:XBurs7gK8ATbW4ZPGKgcbrY1Br56PdM69F7LkFRi1kA=
 golang.org/x/mod v0.27.0 h1:kb+q2PyFnEADO2IEF935ehFUXlWiNjJWtRNgBLSfbxQ=
 golang.org/x/mod v0.27.0/go.mod h1:rWI627Fq0DEoudcK+MBkNkCe0EetEaDSwJJkCcjpazc=
+golang.org/x/sys v0.35.0 h1:vz1N37gP5bs89s7He8XuIYXpyY0+QlsKmzipCbUtyxI=
+golang.org/x/sys v0.35.0/go.mod h1:BJP2sWEmIv4KK5OTEluFJCKSidICx8ciO85XgH3Ak8k=
