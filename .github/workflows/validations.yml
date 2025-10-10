@@ -34,5 +34,6 @@ jobs:
           go-version: ${{ matrix.go-version }}
 
       - run: make static-analysis
+        if: matrix.os == 'ubuntu-latest'
 
       - run: make test
