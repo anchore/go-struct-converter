@@ -1,0 +1,39 @@
+name: Test
+on:
+  pull_request:
+    paths:
+      - '**'
+      - '!**.md'
+      - '!LICENSE'
+  push:
+    branches: [ main ]
+    paths:
+      - '**'
+      - '!**.md'
+      - '!LICENSE'
+
+  schedule:
+    - cron: '0 0 * * *' # daily at midnight
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+        go-version:
+          - '' # from go.mod
+          - stable
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: anchore/go-make/.github/actions/bootstrap@latest
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - run: make static-analysis
+        if: matrix.os == 'ubuntu-latest'
+
+      - run: make test

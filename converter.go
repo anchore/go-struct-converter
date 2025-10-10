@@ -95,7 +95,7 @@ func getValue(fromValue reflect.Value, targetType reflect.Type) (reflect.Value, 
 		}
 
 		// allow structs to implement a custom convert function from previous/next version struct
-		if reflect.PtrTo(baseTargetType).Implements(convertFromType) {
+		if reflect.PointerTo(baseTargetType).Implements(convertFromType) {
 			convertFrom := toValue.Addr().MethodByName(convertFromName)
 			if !convertFrom.IsValid() {
 				return nilValue, fmt.Errorf("unable to get ConvertFrom method")
