@@ -3,7 +3,6 @@ package converter
 import (
 	"iter"
 	"reflect"
-	"strings"
 	"unsafe"
 )
 
@@ -11,7 +10,7 @@ import (
 func typelinks() (sections []unsafe.Pointer, offset [][]int32)
 
 //go:linkname add reflect.add
-func add(p unsafe.Pointer, x uintptr, whySafe string) unsafe.Pointer
+func add(_ unsafe.Pointer, _ uintptr, _ string) unsafe.Pointer
 
 func listAllBaseTypes() iter.Seq[reflect.Type] {
 	return func(yield func(reflect.Type) bool) {
@@ -30,8 +29,4 @@ func listAllBaseTypes() iter.Seq[reflect.Type] {
 			}
 		}
 	}
-}
-
-func isInternalPackage(p string) bool {
-	return !strings.Contains(p, ".")
 }

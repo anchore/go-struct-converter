@@ -161,10 +161,10 @@ func (c *conversion) getValue(fromValue reflect.Value, targetType reflect.Type) 
 	return toValue
 }
 
-func (c *conversion) callConversionFunc(fromValue reflect.Value, fromType reflect.Type, baseTargetType reflect.Type, err error, toValue reflect.Value) (reflect.Value, bool) {
+func (c *conversion) callConversionFunc(fromValue reflect.Value, fromType reflect.Type, baseTargetType reflect.Type, _ error, toValue reflect.Value) (reflect.Value, bool) {
 	if c.chain.funcs[fromType] != nil && c.chain.funcs[fromType][baseTargetType] != nil {
 		convertFunc := c.chain.funcs[fromType][baseTargetType]
-		err = convertFunc(fromValue, toValue.Addr())
+		err := convertFunc(fromValue, toValue.Addr())
 		if err != nil {
 			c.errf("an error occurred calling %s.%s: %v", baseTargetType.Name(), convertFromName, err)
 			return nilValue, true
@@ -294,8 +294,9 @@ func isInt(typ reflect.Type) bool {
 		reflect.Int32,
 		reflect.Int64:
 		return true
+	default:
+		return false
 	}
-	return false
 }
 
 func isUint(typ reflect.Type) bool {
@@ -306,8 +307,9 @@ func isUint(typ reflect.Type) bool {
 		reflect.Uint32,
 		reflect.Uint64:
 		return true
+	default:
+		return false
 	}
-	return false
 }
 
 func isFloat(typ reflect.Type) bool {
@@ -315,8 +317,9 @@ func isFloat(typ reflect.Type) bool {
 	case reflect.Float32,
 		reflect.Float64:
 		return true
+	default:
+		return false
 	}
-	return false
 }
 
 func isStruct(typ reflect.Type) bool {

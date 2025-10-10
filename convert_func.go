@@ -58,7 +58,7 @@ func (c *funcChain) AutoPackageConverter(fromPkg, toPkg any) FuncChain {
 		}
 
 		// this does nothing other than inform the types
-		c.AddConvertFunc(fromT, toT, func(from reflect.Value, to reflect.Value) error {
+		c.AddConvertFunc(fromT, toT, func(_ reflect.Value, _ reflect.Value) error {
 			return nil
 		})
 	}
@@ -128,10 +128,7 @@ func (c *funcChain) addConverter(converter any) {
 
 	// seems to be a valid function, create a handler function for it
 
-	returnsError := false
-	if convertFuncType.NumOut() > 0 {
-		returnsError = true
-	}
+	returnsError := convertFuncType.NumOut() > 0
 
 	hasChainParam := false
 	fromType := convertFuncType.In(0)
@@ -164,7 +161,6 @@ func (c *funcChain) addConverter(converter any) {
 }
 
 func (c *funcChain) AddConvertFunc(fromType, toType reflect.Type, fn func(from reflect.Value, to reflect.Value) error) {
-
 	baseFromType := baseType(fromType)
 	baseToType := baseType(toType)
 
@@ -200,7 +196,7 @@ func (c *funcChain) shortestChain(fromType reflect.Type, targetType reflect.Type
 	}
 	// no explicit conversions, try a direct conversion
 	if len(shortest) == 0 && c.allowImplicitConversion {
-		return []reflectConvertStep{{fromType, func(from reflect.Value, to reflect.Value) error {
+		return []reflectConvertStep{{fromType, func(_ reflect.Value, _ reflect.Value) error {
 			return nil
 		}}}
 	}
