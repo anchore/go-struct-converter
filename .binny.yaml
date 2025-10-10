@@ -5,7 +5,8 @@ tools:
       want: v0.9.0
     method: go-install
     with:
-      repo: anchore/binny
+      module: github.com/anchore/binny
+      entrypoint: cmd/binny
 
   # used at release to generate the changelog
   - name: chronicle
@@ -45,7 +46,7 @@ tools:
       want: v0.4.0
     method: go-install
     with:
-      repo: wagoodman/go-bouncer
+      module: github.com/wagoodman/go-bouncer
 
   # used for triggering a release
   - name: gh
