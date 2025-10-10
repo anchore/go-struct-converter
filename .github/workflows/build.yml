@@ -25,10 +25,7 @@ jobs:
           go-version: '1.18'
 
       - name: Bootstrap tools
-        run: make bootstrap-tools
-
-      - name: Run linters
-        run: make lint
+        run: make bootstrap
 
       - name: Run tests
         run: make test

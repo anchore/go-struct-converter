@@ -10,11 +10,13 @@ import (
 type FuncChain interface {
 	AddConverter(converter ...any) FuncChain
 	AutoPackageConverter(fromPkg, toPkg any) FuncChain
+	AllowImplicit() FuncChain
 	Convert(from any, to any) error
 }
 
 type funcChain struct {
-	funcs map[reflect.Type]map[reflect.Type]func(from reflect.Value, to reflect.Value) error
+	allowImplicitConversion bool
+	funcs                   map[reflect.Type]map[reflect.Type]func(from reflect.Value, to reflect.Value) error
 }
 
 func NewFuncChain(converters ...any) FuncChain {
@@ -24,7 +26,12 @@ func NewFuncChain(converters ...any) FuncChain {
 	return out.AddConverter(converters...)
 }
 
-func (c funcChain) AutoPackageConverter(fromPkg, toPkg any) FuncChain {
+func (c *funcChain) AllowImplicit() FuncChain {
+	c.allowImplicitConversion = true
+	return c
+}
+
+func (c *funcChain) AutoPackageConverter(fromPkg, toPkg any) FuncChain {
 	fromTypes := map[string]reflect.Type{}
 	toTypes := map[string]reflect.Type{}
 
@@ -59,17 +66,7 @@ func (c funcChain) AutoPackageConverter(fromPkg, toPkg any) FuncChain {
 	return c
 }
 
-func pkgName(pkg any) string {
-	switch p := pkg.(type) {
-	case string:
-		return p
-	case reflect.Type:
-		return p.PkgPath()
-	}
-	return baseType(reflect.TypeOf(pkg)).PkgPath()
-}
-
-func (c funcChain) Convert(from any, to any) error {
+func (c *funcChain) Convert(from any, to any) error {
 	fromValue := reflect.ValueOf(from)
 	fromType := fromValue.Type()
 	baseFromType := baseType(fromType)
@@ -81,8 +78,13 @@ func (c funcChain) Convert(from any, to any) error {
 	// build the shortest path between types
 	chain := c.shortestChain(baseFromType, baseToType)
 
+	// no explicit conversions
+	if len(chain) == 0 {
+		return fmt.Errorf("no conversion path found from %s to %s", typeName(baseFromType), typeName(baseToType))
+	}
+
 	cnv := conversion{
-		chain: &c,
+		chain: c,
 	}
 
 	// iterate, creating any intermediary structs for the migration
@@ -102,17 +104,14 @@ func (c funcChain) Convert(from any, to any) error {
 	return errors.Join(cnv.errors...)
 }
 
-var chainType = reflect.TypeOf((*FuncChain)(nil)).Elem()
-var errorInterface = reflect.TypeOf((*error)(nil)).Elem()
-
-func (c funcChain) AddConverter(converters ...any) FuncChain {
+func (c *funcChain) AddConverter(converters ...any) FuncChain {
 	for _, converter := range converters {
 		c.addConverter(converter)
 	}
 	return c
 }
 
-func (c funcChain) addConverter(converter any) {
+func (c *funcChain) addConverter(converter any) {
 	convertFunc := reflect.ValueOf(converter)
 	convertFuncType := convertFunc.Type()
 	if validationError := validateConvertFunc(convertFuncType); validationError != nil {
@@ -164,7 +163,7 @@ func (c funcChain) addConverter(converter any) {
 	})
 }
 
-func (c funcChain) AddConvertFunc(fromType, toType reflect.Type, fn func(from reflect.Value, to reflect.Value) error) {
+func (c *funcChain) AddConvertFunc(fromType, toType reflect.Type, fn func(from reflect.Value, to reflect.Value) error) {
 
 	baseFromType := baseType(fromType)
 	baseToType := baseType(toType)
@@ -181,6 +180,35 @@ func (c funcChain) AddConvertFunc(fromType, toType reflect.Type, fn func(from re
 
 	convertFuncs[baseToType] = fn
 }
+
+func (c *funcChain) shortestChain(fromType reflect.Type, targetType reflect.Type, visited ...reflect.Type) []reflectConvertStep {
+	var shortest []reflectConvertStep
+	for toType, convertFunc := range c.funcs[fromType] {
+		if slices.Contains(visited, toType) {
+			continue
+		}
+		if toType == targetType {
+			return []reflectConvertStep{{toType, convertFunc}}
+		}
+		chain := c.shortestChain(toType, targetType, append(visited, fromType)...)
+		if chain != nil {
+			chain = append([]reflectConvertStep{{toType, convertFunc}}, chain...)
+		}
+		if shortest == nil || len(chain) < len(shortest) {
+			shortest = chain
+		}
+	}
+	// no explicit conversions, try a direct conversion
+	if len(shortest) == 0 && c.allowImplicitConversion {
+		return []reflectConvertStep{{fromType, func(from reflect.Value, to reflect.Value) error {
+			return nil
+		}}}
+	}
+	return shortest
+}
+
+var chainType = reflect.TypeOf((*FuncChain)(nil)).Elem()
+var errorInterface = reflect.TypeOf((*error)(nil)).Elem()
 
 func typeName(t reflect.Type) string {
 	return fmt.Sprintf("<%s>.%s", t.PkgPath(), t.Name())
@@ -225,6 +253,16 @@ func validateConvertFunc(t reflect.Type) error {
 	return nil
 }
 
+func pkgName(pkg any) string {
+	switch p := pkg.(type) {
+	case string:
+		return p
+	case reflect.Type:
+		return p.PkgPath()
+	}
+	return baseType(reflect.TypeOf(pkg)).PkgPath()
+}
+
 func baseType(t reflect.Type) reflect.Type {
 	for isPtr(t) {
 		t = t.Elem()
@@ -237,30 +275,4 @@ type reflectConvertFunc func(from reflect.Value, to reflect.Value) error
 type reflectConvertStep struct {
 	targetType  reflect.Type
 	convertFunc reflectConvertFunc
-}
-
-func (c funcChain) shortestChain(fromType reflect.Type, targetType reflect.Type, visited ...reflect.Type) []reflectConvertStep {
-	var shortest []reflectConvertStep
-	for toType, convertFunc := range c.funcs[fromType] {
-		if slices.Contains(visited, toType) {
-			continue
-		}
-		if toType == targetType {
-			return []reflectConvertStep{{toType, convertFunc}}
-		}
-		chain := c.shortestChain(toType, targetType, append(visited, fromType)...)
-		if chain != nil {
-			chain = append([]reflectConvertStep{{toType, convertFunc}}, chain...)
-		}
-		if shortest == nil || len(chain) < len(shortest) {
-			shortest = chain
-		}
-	}
-	// no explicit conversions, try a direct conversion
-	if len(shortest) == 0 {
-		return []reflectConvertStep{{fromType, func(from reflect.Value, to reflect.Value) error {
-			return nil
-		}}}
-	}
-	return shortest
 }

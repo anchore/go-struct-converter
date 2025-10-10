@@ -81,15 +81,15 @@ func Test_ConvertWithKnownTypes(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			var to T6
 
-			chain := NewFuncChain(test.chain...)
+			chain := NewFuncChain(test.chain...).AllowImplicit()
 
 			err := chain.Convert(from, &to)
 			if err != nil {
-				t.Error(err)
+				t.Fatal(err)
 			}
 
 			if diff := cmp.Diff(test.expected, to); diff != "" {
-				t.Errorf(diff)
+				t.Fatal(diff)
 			}
 		})
 	}
@@ -629,7 +629,7 @@ func Test_Convert(t *testing.T) {
 			newInstance := reflect.New(typ)
 			result := newInstance.Interface()
 
-			chain := NewFuncChain(t1_t2, t2_t3, t3_t4, t4_t5, t5_t6)
+			chain := NewFuncChain(t1_t2, t2_t3, t3_t4, t4_t5, t5_t6).AllowImplicit()
 			err := chain.Convert(test.from, result)
 			if err != nil {
 				t.Fatalf("error during conversion: %v", err)
