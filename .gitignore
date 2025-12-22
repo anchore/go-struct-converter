@@ -23,10 +23,12 @@
 go.work
 
 # tools
-.tmp
+.tool
 
 # test output
 test/results
 
 # IDE project files
 .idea
+
+profile.cov*

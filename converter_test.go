@@ -3,9 +3,11 @@ package converter
 import (
 	"reflect"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
-func Test_ConvertVar(t *testing.T) {
+func Test_ConvertWithKnownTypes(t *testing.T) {
 	from := T5{
 		Version: "2.2",
 		Embedded: T3{
@@ -16,25 +18,80 @@ func Test_ConvertVar(t *testing.T) {
 		},
 	}
 
-	var to T6
-
-	err := Convert(from, &to)
-	if err != nil {
-		t.Error(err)
-	}
-
-	expected := T6{
-		Version: "2.3",
-		Embedded: T4{
-			T2: T2{
-				Same:     "same value",
-				NewValue: "old value",
+	tests := []struct {
+		name     string
+		chain    []any
+		expected any
+	}{
+		{
+			name:  "no conversions",
+			chain: []any{},
+			expected: T6{
+				Version: "2.2",
+				Embedded: T4{
+					T2: T2{
+						Same:     "",
+						NewValue: "",
+					},
+				},
+			},
+		},
+		{
+			name:  "top conversion",
+			chain: []any{t5_t6},
+			expected: T6{
+				Version: "2.3",
+				Embedded: T4{
+					T2: T2{
+						Same:     "",
+						NewValue: "",
+					},
+				},
+			},
+		},
+		{
+			name:  "mid conversion",
+			chain: []any{t3_t4},
+			expected: T6{
+				Version: "2.2",
+				Embedded: T4{
+					T2: T2{
+						Same:     "same value",
+						NewValue: "",
+					},
+				},
+			},
+		},
+		{
+			name:  "all conversions",
+			chain: []any{t1_t2, t3_t4, t5_t6},
+			expected: T6{
+				Version: "2.3",
+				Embedded: T4{
+					T2: T2{
+						Same:     "same value",
+						NewValue: "old value",
+					},
+				},
 			},
 		},
 	}
 
-	if !reflect.DeepEqual(expected, to) {
-		t.Errorf("structs are not equal: %+v != %+v", expected, to)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var to T6
+
+			chain := NewFuncChain(test.chain...).AllowImplicit()
+
+			err := chain.Convert(from, &to)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if diff := cmp.Diff(test.expected, to); diff != "" {
+				t.Fatal(diff)
+			}
+		})
 	}
 }
 
@@ -51,8 +108,8 @@ func Test_Convert(t *testing.T) {
 
 	tests := []struct {
 		name string
-		from interface{}
-		to   interface{}
+		from any
+		to   any
 	}{
 		{
 			name: "primitive support",
@@ -572,7 +629,8 @@ func Test_Convert(t *testing.T) {
 			newInstance := reflect.New(typ)
 			result := newInstance.Interface()
 
-			err := Convert(test.from, result)
+			chain := NewFuncChain(t1_t2, t2_t3, t3_t4, t4_t5, t5_t6).AllowImplicit()
+			err := chain.Convert(test.from, result)
 			if err != nil {
 				t.Fatalf("error during conversion: %v", err)
 			}
@@ -604,32 +662,34 @@ type T2 struct {
 	NewValue string
 }
 
-func (t *T2) ConvertFrom(i interface{}) error {
-	t1 := i.(T1)
-	t.NewValue = t1.OldValue
+func t1_t2(t1 T1, t2 *T2) error {
+	t2.NewValue = t1.OldValue
 	return nil
 }
 
-var _ ConvertFrom = (*T2)(nil)
-
 type T3 struct {
 	T1 T1
+}
+
+func t2_t3(c FuncChain, t2 T2, t3 *T3) error {
+	return c.Convert(t2, t3.T1)
 }
 
 type T4 struct {
 	T2 T2
 }
 
-func (t *T4) ConvertFrom(i interface{}) error {
-	t3 := i.(T3)
-	return Convert(t3.T1, &t.T2)
+func t3_t4(c FuncChain, t3 T3, t4 *T4) error {
+	return c.Convert(t3.T1, &t4.T2)
 }
-
-var _ ConvertFrom = (*T4)(nil)
 
 type T5 struct {
 	Version  string
 	Embedded T3
+}
+
+func t4_t5(t4 T4, t5 *T5) error {
+	return nil
 }
 
 type T6 struct {
@@ -637,9 +697,7 @@ type T6 struct {
 	Embedded T4
 }
 
-func (t *T6) ConvertFrom(_ interface{}) error {
-	t.Version = "2.3"
+func t5_t6(t5 T5, t6 *T6) error {
+	t6.Version = "2.3"
 	return nil
 }
-
-var _ ConvertFrom = (*T6)(nil)
