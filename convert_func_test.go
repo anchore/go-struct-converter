@@ -61,7 +61,7 @@ func Test_FuncChainErrors(t *testing.T) {
 }
 
 func Test_FuncChain(t *testing.T) {
-	chain := NewFuncChain(t1ToT2, t2ToT3, t2ToT1, t3ToT2)
+	chain := NewFuncChain(t1ToT2, t2ToT1, t2ToT3, t3ToT2, t3ToT4, t4ToT5, t3ToT5)
 
 	from := t1{
 		Name:    "name-value-from-1",
@@ -80,6 +80,11 @@ func Test_FuncChain(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, from.Name, backToT1.Name)
 	require.Equal(t, from.Custom1, backToT1.Custom1)
+
+	shortestToT5 := t5{}
+	err = chain.Convert(to, &shortestToT5)
+	require.NoError(t, err)
+	require.Equal(t, "FromT3", shortestToT5.Name)
 }
 
 type t1 struct {
@@ -91,6 +96,14 @@ type t2 struct {
 	Custom2 string
 }
 type t3 struct {
+	Name    string
+	Custom3 string
+}
+type t4 struct {
+	Name    string
+	Custom3 string
+}
+type t5 struct {
 	Name    string
 	Custom3 string
 }
@@ -112,5 +125,19 @@ func t3ToT2(_ FuncChain, t3 t3, t2 *t2) error {
 
 func t2ToT1(_ FuncChain, t2 t2, t1 *t1) error {
 	t1.Custom1 = t2.Custom2
+	return nil
+}
+
+func t3ToT4(_ FuncChain, _ t3, _ *t4) error {
+	return nil
+}
+
+func t4ToT5(_ FuncChain, _ t4, t5 *t5) error {
+	t5.Name = "FromT4"
+	return nil
+}
+
+func t3ToT5(_ FuncChain, _ t3, t5 *t5) error {
+	t5.Name = "FromT3"
 	return nil
 }

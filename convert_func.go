@@ -187,9 +187,11 @@ func (c *funcChain) shortestChain(fromType reflect.Type, targetType reflect.Type
 			return []reflectConvertStep{{toType, convertFunc}}
 		}
 		chain := c.shortestChain(toType, targetType, append(visited, fromType)...)
-		if chain != nil {
-			chain = append([]reflectConvertStep{{toType, convertFunc}}, chain...)
+		if chain == nil {
+			continue
 		}
+		// this is a viable conversion chain, use it if it's shorter or we haven't found any yet
+		chain = append([]reflectConvertStep{{toType, convertFunc}}, chain...)
 		if shortest == nil || len(chain) < len(shortest) {
 			shortest = chain
 		}
