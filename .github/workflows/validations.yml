@@ -1,42 +1,34 @@
-name: Test
+name: "Validations"
 on:
-  pull_request:
-    paths:
-      - '**'
-      - '!**.md'
-      - '!LICENSE'
+  workflow_dispatch:
   push:
-    branches: [ main ]
-    paths:
-      - '**'
-      - '!**.md'
-      - '!LICENSE'
-
-  schedule:
-    - cron: '0 2 15 * *' # monthly at 2 am on the 15th
+    branches:
+      - main
+  pull_request:
 
 permissions:
   contents: read
 
 jobs:
-  test:
-    strategy:
-      matrix:
-        os:
-          - ubuntu-latest
-          - windows-latest
-          - macos-latest
-        go-version:
-          - '' # from go.mod
-          - stable
 
-    runs-on: ${{ matrix.os }}
+  Static-Analysis:
+    # Note: changing this job name requires making the same update in the .github/workflows/release.yaml pipeline
+    name: "Static analysis"
+    runs-on: ubuntu-24.04
     steps:
-      - uses: anchore/go-make/.github/actions/bootstrap@latest
-        with:
-          go-version: ${{ matrix.go-version }}
+      # setup checkout, go, go-make, binny, and cache go modules
+      - uses: anchore/go-make/.github/actions/setup@383ef7852b8ae43a30f424896b52479186d2ea4d # v0.1.0
 
-      - run: make static-analysis
-        if: matrix.os == 'ubuntu-latest'
+      - name: Run static analysis
+        run: make static-analysis
 
-      - run: make test
+  Unit-Test:
+    # Note: changing this job name requires making the same update in the .github/workflows/release.yaml pipeline
+    name: "Unit tests"
+    runs-on: ubuntu-24.04
+    steps:
+      # setup checkout, go, go-make, binny, and cache go modules
+      - uses: anchore/go-make/.github/actions/setup@383ef7852b8ae43a30f424896b52479186d2ea4d # v0.1.0
+
+      - name: Run unit tests
+        run: make unit

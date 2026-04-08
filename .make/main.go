@@ -9,9 +9,9 @@ import (
 
 func main() {
 	Makefile(
+		gotest.Tasks(),
 		golint.Tasks(),
 		release.ChangelogTask(),
-		release.GhReleaseTask(),
-		gotest.Tasks(),
+		release.TagAndCreateGHRelease(),
 	)
 }
