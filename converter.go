@@ -42,13 +42,9 @@ func (c *conversion) convert(fromValue reflect.Value, toValuePtr reflect.Value) 
 }
 
 func (c *conversion) getValue(fromValue reflect.Value, targetType reflect.Type) reflect.Value {
-	var err error
-
 	fromType := fromValue.Type()
 
-	var toValue reflect.Value
-
-	// handle incoming pointer Types
+	// handle incoming pointer types
 	if isPtr(fromType) {
 		if fromValue.IsNil() {
 			return nilValue
@@ -65,82 +61,7 @@ func (c *conversion) getValue(fromValue reflect.Value, targetType reflect.Type) 
 		baseTargetType = targetType.Elem()
 	}
 
-	switch {
-	case isInterface(baseTargetType):
-		satisfyingType := c.findConvertableType(fromType, baseTargetType)
-		if satisfyingType != nil {
-			return c.getValue(fromValue, satisfyingType)
-		}
-	case isStruct(fromType) && isStruct(baseTargetType):
-		// this always creates a pointer type
-		toValue = reflect.New(baseTargetType)
-		toValue = toValue.Elem()
-
-		for i := 0; i < fromType.NumField(); i++ {
-			fromField := fromType.Field(i)
-			fromFieldValue := fromValue.Field(i)
-
-			toField, exists := baseTargetType.FieldByName(fromField.Name)
-			if !exists {
-				continue
-			}
-			toFieldType := toField.Type
-
-			toFieldValue := toValue.FieldByName(toField.Name)
-
-			newValue := c.getValue(fromFieldValue, toFieldType)
-			if newValue == nilValue {
-				continue
-			}
-
-			toFieldValue.Set(newValue)
-		}
-
-		// check for custom convert functions from previous/next version struct
-
-		value, done := c.callConversionFunc(fromValue, fromType, baseTargetType, err, toValue)
-		if done {
-			return value
-		}
-	case isSlice(fromType) && isSlice(baseTargetType):
-		if fromValue.IsNil() {
-			return nilValue
-		}
-
-		length := fromValue.Len()
-		targetElementType := baseTargetType.Elem()
-		toValue = reflect.MakeSlice(baseTargetType, length, length)
-		for i := 0; i < length; i++ {
-			v := c.getValue(fromValue.Index(i), targetElementType)
-			if v.IsValid() {
-				toValue.Index(i).Set(v)
-			}
-		}
-	case isMap(fromType) && isMap(baseTargetType):
-		if fromValue.IsNil() {
-			return nilValue
-		}
-
-		keyType := baseTargetType.Key()
-		elementType := baseTargetType.Elem()
-		toValue = reflect.MakeMap(baseTargetType)
-		for _, fromKey := range fromValue.MapKeys() {
-			fromVal := fromValue.MapIndex(fromKey)
-			k := c.getValue(fromKey, keyType)
-			v := c.getValue(fromVal, elementType)
-			if k == nilValue || v == nilValue {
-				continue
-			}
-			if v == nilValue {
-				continue
-			}
-			if k.IsValid() && v.IsValid() {
-				toValue.SetMapIndex(k, v)
-			}
-		}
-	default:
-		toValue = fromValue
-	}
+	toValue := c.getValueByKind(fromValue, fromType, baseTargetType)
 
 	if !toValue.IsValid() {
 		return nilValue
@@ -161,7 +82,102 @@ func (c *conversion) getValue(fromValue reflect.Value, targetType reflect.Type) 
 	return toValue
 }
 
-func (c *conversion) callConversionFunc(fromValue reflect.Value, fromType reflect.Type, baseTargetType reflect.Type, _ error, toValue reflect.Value) (reflect.Value, bool) {
+// getValueByKind dispatches to the appropriate conversion method based on the kind of the types involved.
+func (c *conversion) getValueByKind(fromValue reflect.Value, fromType, baseTargetType reflect.Type) reflect.Value {
+	switch {
+	case isInterface(baseTargetType):
+		satisfyingType := c.findConvertableType(fromType, baseTargetType)
+		if satisfyingType != nil {
+			return c.getValue(fromValue, satisfyingType)
+		}
+		return nilValue
+	case isStruct(fromType) && isStruct(baseTargetType):
+		return c.getStructValue(fromValue, fromType, baseTargetType)
+	case isSlice(fromType) && isSlice(baseTargetType):
+		return c.getSliceValue(fromValue, baseTargetType)
+	case isMap(fromType) && isMap(baseTargetType):
+		return c.getMapValue(fromValue, baseTargetType)
+	default:
+		return fromValue
+	}
+}
+
+// getStructValue handles struct-to-struct conversion by mapping fields with matching names.
+func (c *conversion) getStructValue(fromValue reflect.Value, fromType, baseTargetType reflect.Type) reflect.Value {
+	toValue := reflect.New(baseTargetType).Elem()
+
+	for i := 0; i < fromType.NumField(); i++ {
+		fromField := fromType.Field(i)
+		fromFieldValue := fromValue.Field(i)
+
+		toField, exists := baseTargetType.FieldByName(fromField.Name)
+		if !exists {
+			continue
+		}
+
+		newValue := c.getValue(fromFieldValue, toField.Type)
+		if newValue == nilValue {
+			continue
+		}
+
+		toValue.FieldByName(toField.Name).Set(newValue)
+	}
+
+	// check for custom convert functions from previous/next version struct
+	if value, done := c.callConversionFunc(fromValue, fromType, baseTargetType, toValue); done {
+		return value
+	}
+
+	return toValue
+}
+
+// getSliceValue handles slice-to-slice conversion by converting each element.
+func (c *conversion) getSliceValue(fromValue reflect.Value, baseTargetType reflect.Type) reflect.Value {
+	if fromValue.IsNil() {
+		return nilValue
+	}
+
+	length := fromValue.Len()
+	targetElementType := baseTargetType.Elem()
+	toValue := reflect.MakeSlice(baseTargetType, length, length)
+
+	for i := 0; i < length; i++ {
+		v := c.getValue(fromValue.Index(i), targetElementType)
+		if v.IsValid() {
+			toValue.Index(i).Set(v)
+		}
+	}
+
+	return toValue
+}
+
+// getMapValue handles map-to-map conversion by converting each key-value pair.
+func (c *conversion) getMapValue(fromValue reflect.Value, baseTargetType reflect.Type) reflect.Value {
+	if fromValue.IsNil() {
+		return nilValue
+	}
+
+	keyType := baseTargetType.Key()
+	elementType := baseTargetType.Elem()
+	toValue := reflect.MakeMap(baseTargetType)
+
+	for _, fromKey := range fromValue.MapKeys() {
+		fromVal := fromValue.MapIndex(fromKey)
+		k := c.getValue(fromKey, keyType)
+		v := c.getValue(fromVal, elementType)
+
+		if k == nilValue || v == nilValue {
+			continue
+		}
+		if k.IsValid() && v.IsValid() {
+			toValue.SetMapIndex(k, v)
+		}
+	}
+
+	return toValue
+}
+
+func (c *conversion) callConversionFunc(fromValue reflect.Value, fromType, baseTargetType reflect.Type, toValue reflect.Value) (reflect.Value, bool) {
 	if c.chain.funcs[fromType] != nil && c.chain.funcs[fromType][baseTargetType] != nil {
 		convertFunc := c.chain.funcs[fromType][baseTargetType]
 		err := convertFunc(fromValue, toValue.Addr())

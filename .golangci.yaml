@@ -6,6 +6,7 @@ linters:
   enable:
     - asciicheck
     - bodyclose
+    - copyloopvar
     - dogsled
     - dupl
     - errcheck
@@ -27,20 +28,20 @@ linters:
     - unparam
     - unused
     - whitespace
+
   settings:
     funlen:
-      lines: 140
-      statements: 90
+      lines: 100
+      statements: 60
+    gocognit:
+      min-complexity: 40
     gocritic:
       enabled-checks:
         - deferInLoop
     gosec:
       excludes:
         - G115
-    gocognit:
-      min-complexity: 80
-    gocyclo:
-      min-complexity: 50
+
   exclusions:
     generated: lax
     presets:
