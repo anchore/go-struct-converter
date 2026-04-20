@@ -141,7 +141,7 @@ func (c *conversion) getSliceValue(fromValue reflect.Value, baseTargetType refle
 	targetElementType := baseTargetType.Elem()
 	toValue := reflect.MakeSlice(baseTargetType, length, length)
 
-	for i := 0; i < length; i++ {
+	for i := range length {
 		v := c.getValue(fromValue.Index(i), targetElementType)
 		if v.IsValid() {
 			toValue.Index(i).Set(v)
