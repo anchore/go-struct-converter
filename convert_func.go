@@ -171,7 +171,7 @@ func (c *funcChain) AddConvertFunc(fromType, toType reflect.Type, fn func(from r
 	}
 
 	if convertFuncs[baseToType] != nil {
-		panic(fmt.Errorf("convert from: %s -> %s defined multiple times; %+v", typeName(baseFromType), typeName(baseToType), reflect.TypeOf(convertFuncs[baseToType])))
+		panic(fmt.Errorf("convert from: %s -> %s defined multiple times; %+v", typeName(baseFromType), typeName(baseToType), reflect.TypeFor[func(from reflect.Value, to reflect.Value) error]()))
 	}
 
 	convertFuncs[baseToType] = fn
@@ -205,8 +205,8 @@ func (c *funcChain) shortestChain(fromType reflect.Type, targetType reflect.Type
 	return shortest
 }
 
-var chainType = reflect.TypeOf((*FuncChain)(nil)).Elem()
-var errorInterface = reflect.TypeOf((*error)(nil)).Elem()
+var chainType = reflect.TypeFor[FuncChain]()
+var errorInterface = reflect.TypeFor[error]()
 
 func typeName(t reflect.Type) string {
 	return fmt.Sprintf("<%s>.%s", t.PkgPath(), t.Name())
