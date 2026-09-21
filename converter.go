@@ -287,7 +287,7 @@ func (c *conversion) findConvertableType(fromType reflect.Type, targetType refle
 }
 
 func isPtr(typ reflect.Type) bool {
-	return typ.Kind() == reflect.Ptr
+	return typ.Kind() == reflect.Pointer
 }
 
 func isPrimitive(typ reflect.Type) bool {
