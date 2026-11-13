@@ -1,9 +1,13 @@
 package converter
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	v1 "github.com/anchore/go-struct-converter/internal/testpkg/v1"
+	v2 "github.com/anchore/go-struct-converter/internal/testpkg/v2"
 )
 
 func Test_FuncChainErrors(t *testing.T) {
@@ -85,6 +89,44 @@ func Test_FuncChain(t *testing.T) {
 	err = chain.Convert(to, &shortestToT5)
 	require.NoError(t, err)
 	require.Equal(t, "FromT3", shortestToT5.Name)
+}
+
+func Test_AutoPackageConverter(t *testing.T) {
+	const v1Pkg = "github.com/anchore/go-struct-converter/internal/testpkg/v1"
+	const v2Pkg = "github.com/anchore/go-struct-converter/internal/testpkg/v2"
+
+	tests := []struct {
+		name    string
+		fromPkg any
+		toPkg   any
+	}{
+		{
+			name:    "package paths",
+			fromPkg: v1Pkg,
+			toPkg:   v2Pkg,
+		},
+		{
+			name:    "struct values",
+			fromPkg: v1.Document{},
+			toPkg:   v2.Document{},
+		},
+		{
+			name:    "reflect types",
+			fromPkg: reflect.TypeFor[v1.Document](),
+			toPkg:   reflect.TypeFor[v2.Document](),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			chain := NewFuncChain().AutoPackageConverter(test.fromPkg, test.toPkg)
+
+			to := v2.Document{}
+			err := chain.Convert(v1.Document{Name: "name-value"}, &to)
+			require.NoError(t, err)
+			require.Equal(t, "name-value", to.Name)
+		})
+	}
 }
 
 type t1 struct {

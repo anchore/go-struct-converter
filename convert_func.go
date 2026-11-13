@@ -43,10 +43,10 @@ func (c *funcChain) AutoPackageConverter(fromPkg, toPkg any) FuncChain {
 	}
 
 	for t := range listAllBaseTypes() {
-		if t.PkgPath() == fromPkg {
+		if t.PkgPath() == fromName {
 			fromTypes[t.Name()] = t
 		}
-		if t.PkgPath() == toPkg {
+		if t.PkgPath() == toName {
 			toTypes[t.Name()] = t
 		}
 	}
